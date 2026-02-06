@@ -8,7 +8,7 @@ echo "Waiting for database to be ready..."
 max_retries=30
 retry_count=0
 
-while ! pg_isready -h db -p 5432 -U ${POSTGRES_USER:-manuscript_user} > /dev/null 2>&1; do
+while ! pg_isready -h db -p 5432 -U ${POSTGRES_USER:-manuscript_user} -d ${POSTGRES_DB:-manuscript_db} > /dev/null 2>&1; do
     retry_count=$((retry_count + 1))
     if [ $retry_count -ge $max_retries ]; then
         echo "ERROR: Database did not become ready in time"
