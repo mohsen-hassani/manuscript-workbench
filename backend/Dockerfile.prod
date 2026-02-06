@@ -2,9 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install curl for healthcheck
+# Install curl for healthcheck and postgresql-client for db checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -15,5 +16,9 @@ COPY . .
 # Create storage directory with proper permissions
 RUN mkdir -p /app/storage && chmod 755 /app/storage
 
-# Production command without --reload
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Copy and make entrypoint script executable
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Use entrypoint script that runs migrations before starting uvicorn
+CMD ["/app/entrypoint.sh"]
