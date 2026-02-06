@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, case
 from app.models import Project, ProjectMember, User, File
 from app.models.enums import ProjectStatus
 from app.schemas.project import (
@@ -24,9 +24,19 @@ class ProjectService:
         )
 
     def get_all(self, skip: int = 0, limit: int = 100) -> list[Project]:
+        # Define status priority order: in_progress → under_review → draft → completed
+        status_order = case(
+            (Project.status == ProjectStatus.IN_PROGRESS, 1),
+            (Project.status == ProjectStatus.UNDER_REVIEW, 2),
+            (Project.status == ProjectStatus.DRAFT, 3),
+            (Project.status == ProjectStatus.COMPLETED, 4),
+            else_=5
+        )
+
         return (
             self.db.query(Project)
             .options(joinedload(Project.creator))
+            .order_by(status_order, Project.created_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
@@ -37,12 +47,22 @@ class ProjectService:
         if is_admin(user):
             return self.get_all(skip, limit)
 
+        # Define status priority order: in_progress → under_review → draft → completed
+        status_order = case(
+            (Project.status == ProjectStatus.IN_PROGRESS, 1),
+            (Project.status == ProjectStatus.UNDER_REVIEW, 2),
+            (Project.status == ProjectStatus.DRAFT, 3),
+            (Project.status == ProjectStatus.COMPLETED, 4),
+            else_=5
+        )
+
         # Get projects where user is a member
         return (
             self.db.query(Project)
             .join(ProjectMember)
             .options(joinedload(Project.creator))
             .filter(ProjectMember.user_id == user.id)
+            .order_by(status_order, Project.created_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
